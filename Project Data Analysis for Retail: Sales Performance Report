@@ -1,1 +1,10 @@
+  Overall Performance by Year
 
+SELECT 
+left(order_date, 4) AS years,
+ROUND(SUM(sales), 2) AS sales,
+COUNT(order_quantity) AS number_of_order
+FROM dqlab_sales_store
+WHERE order_status = 'Order Finished'
+GROUP BY years
+ORDER BY 1 ASC
