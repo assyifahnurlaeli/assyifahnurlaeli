@@ -14,7 +14,7 @@ Adapun dataset yang sudah diberikan dan akan digunakan pada project ini berisi d
 9.	Product Category
 10.	Product Sub-Category
 
-Nama tabel yang akan digunakan pada project ini adalah dqlab_sales_store <a href="https://github.com/glalitaf/Project-Data-Analysis-for-Retail-Sales-Performance-Report/blob/main/Data/Dataset/dqlab_sales_store.xlsx">link.</a>
+Nama tabel yang akan digunakan pada project ini adalah dqlab_sales_store <a href="https://github.com/assyifahnurlaeli/assyifahnurlaeli/blob/main/dqlab_sales_store.xlsx">link.</a>
 
 ## Data Trasnformation
 Untuk melakukan analisis dan memenuhi business request DQLab store, dataset terlebih dahulu diekstrak menggunakan SQL. 
