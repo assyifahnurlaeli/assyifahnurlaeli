@@ -1,0 +1,236 @@
+// ==========================================================
+// === CONFIGURATION ===
+// ==========================================================
+const REDASH_URL   = "https://your-redash-url.com";  // Example only
+const API_KEY      = "YOUR_API_KEY";
+const QUERY_ID     = 1234;
+const SHEET_NAME   = "Raw Data";      // Sheet for raw data
+const START_ROW    = 4;               // Start row for writing data
+const END_ROW      = 40000;           // Max rows
+const END_COLUMN   = 21;              // Last column (U)
+
+// Email & Report Config (Dummy for Portfolio)
+const ADMIN_EMAIL  = "admin@example.com"; 
+const REPORT_SHEET = "Report Summary";        
+const REPORT_RANGE = "A4:K155";               
+const REPORT_URL   = "https://docs.google.com/spreadsheets/d/EXAMPLE_ID"; 
+
+// Log Sheet
+const LOG_SHEET_NAME = "Log Pengiriman";
+
+
+// ==========================================================
+// === MAIN PROCESS ===
+// ==========================================================
+function runFullProcess() {
+  try {
+    const totalRows = fetchRedashData();   // Fetch data from Redash
+    sendReportSummaryStyled();             // Send email report
+    logPengiriman(totalRows || 0, "Auto Trigger");
+  } catch (error) {
+    Logger.log("Error occurred: " + error.message);
+    notifyError(error.message);
+  }
+}
+
+
+// ==========================================================
+// === FETCH DATA FROM REDASH ===
+// ==========================================================
+function fetchRedashData() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  if (!sheet) throw new Error(`Sheet "${SHEET_NAME}" not found!`);
+
+  // Yesterday & today
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  const startStr = Utilities.formatDate(yesterday, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  const endStr   = Utilities.formatDate(today, Session.getScriptTimeZone(), "yyyy-MM-dd");
+
+  // Request payload
+  const payload = {
+    parameters: {
+      pickup_start_date: startStr,
+      pickup_end_date:   endStr,
+      hub_name: "'HUB1','HUB2','HUB3'"
+    }
+  };
+
+  const options = {
+    method: "post",
+    headers: { Authorization: "Key " + API_KEY },
+    contentType: "application/json",
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  const url      = `${REDASH_URL}/api/queries/${QUERY_ID}/results`;
+  const response = UrlFetchApp.fetch(url, options);
+
+  if (response.getResponseCode() !== 200) {
+    throw new Error(`Request to Redash failed: ${response.getResponseCode()}`);
+  }
+
+  const data = JSON.parse(response.getContentText());
+  if (!data.query_result?.data?.rows) {
+    throw new Error("Data not found or response format changed!");
+  }
+
+  const rows    = data.query_result.data.rows;
+  const columns = data.query_result.data.columns.map(c => c.name);
+
+  Logger.log(`Data fetched for: ${startStr} to ${endStr}`);
+  Logger.log(`Row count: ${rows.length}`);
+
+  // Clear old data
+  sheet.getRange(START_ROW, 1, END_ROW - START_ROW + 1, END_COLUMN).clearContent();
+
+  // Write new data
+  if (rows.length > 0) {
+    const values         = rows.map(row => columns.map(col => row[col]));
+    const maxRows        = END_ROW - START_ROW + 1;
+    const limitedValues  = values.slice(0, maxRows);
+
+    sheet.getRange(START_ROW, 1, limitedValues.length, columns.length)
+         .setValues(limitedValues);
+  }
+
+  return rows.length; 
+}
+
+
+// ==========================================================
+// === SEND REPORT (STYLED TABLE) ===
+// ==========================================================
+function sendReportSummaryStyled() {
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(REPORT_SHEET);
+  const range = sheet.getRange(REPORT_RANGE);
+
+  const displayValues = range.getDisplayValues();
+  const backgrounds   = range.getBackgrounds();
+  const fonts         = range.getFontColors();
+  const fontWeights   = range.getFontWeights();
+
+  const today     = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  const options            = { day: 'numeric', month: 'long', year: 'numeric' };
+  const formattedToday     = today.toLocaleDateString('en-US', options);
+  const formattedYesterday = yesterday.toLocaleDateString('en-US', options);
+  const subject            = `Daily Report ${formattedYesterday}`;
+
+  // Build HTML table
+  let htmlTable = `<table style="border-collapse:collapse;font-family:Arial;font-size:12px;width:100%;">`;
+
+  for (let i = 0; i < displayValues.length; i++) {
+    htmlTable += "<tr>";
+    for (let j = 0; j < displayValues[i].length; j++) {
+      const value  = displayValues[i][j] || "";
+      const bg     = backgrounds[i][j];
+      const color  = fonts[i][j];
+      const weight = fontWeights[i][j];
+
+      const isEmpty =
+        value === "" &&
+        (!bg || bg === "#ffffff" || bg.toLowerCase() === "white") &&
+        (!color || color === "#000000") &&
+        weight === "normal";
+
+      let cellStyle = isEmpty
+        ? "padding:6px;text-align:center;border:none;background:#fff;"
+        : `padding:6px;text-align:center;border:1px solid #000;background:${value === "" ? "#f2f2f2" : bg || "#fff"};color:${color || "#000"};font-weight:${weight};`;
+
+      htmlTable += `<td style="${cellStyle}">${value}</td>`;
+    }
+    htmlTable += "</tr>";
+  }
+
+  htmlTable += "</table>";
+
+  // Email body
+  const body = `
+    <p>Hello Team,</p>
+    <p>
+      Please find the <a href="${REPORT_URL}" target="_blank"><b>Daily Report</b></a>
+      based on data from <b>${formattedYesterday}</b> (N+0) and 
+      <b>${formattedToday}</b> (N+1).
+    </p>
+    <div style="margin-top:20px;border-top:2px solid #007bff;padding-top:10px;">
+      ${htmlTable}
+    </div>
+    <p>Regards,<br>Automation Bot</p>
+  `;
+
+  // Send email (dummy address for portfolio)
+  const emailTo = ["user@example.com"];
+  const emailCc = ["manager@example.com"];
+
+  GmailApp.sendEmail(emailTo.join(","), subject, "Plain text version", {
+    htmlBody: body,
+    cc: emailCc.join(",")
+  });
+
+  Logger.log(`Email sent to: ${emailTo.join(", ")} | CC: ${emailCc.join(", ")}`);
+}
+
+
+// ==========================================================
+// === LOGGING ===
+// ==========================================================
+function logPengiriman(jumlahData, status = "Email Sent") {
+  const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(LOG_SHEET_NAME);
+  if (!logSheet) throw new Error(`Sheet "${LOG_SHEET_NAME}" not found!`);
+
+  const now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
+  logSheet.appendRow([now, jumlahData, status]);
+
+  Logger.log(`Log recorded: ${now} | ${jumlahData} rows | ${status}`);
+}
+
+
+// ==========================================================
+// === ERROR NOTIFICATION ===
+// ==========================================================
+function notifyError(errorMessage) {
+  const subject = "[ALERT] Automation Script Failed";
+  const body = `
+    Hello,
+
+    The automation process failed.
+
+    Error message:
+    ${errorMessage}
+
+    Please check the Apps Script log for more details.
+
+    Regards,
+    Automation Bot
+  `;
+
+  GmailApp.sendEmail(ADMIN_EMAIL, subject, body);
+  Logger.log(`Error notification sent to ${ADMIN_EMAIL}`);
+}
+
+
+// ==========================================================
+// === CREATE DAILY TRIGGER ===
+// ==========================================================
+function createTrigger() {
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'runFullProcess') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('runFullProcess')
+    .timeBased()
+    .atHour(9)
+    .everyDays(1)
+    .create();
+
+  Logger.log('Daily trigger created for 09:00 AM.');
+}
