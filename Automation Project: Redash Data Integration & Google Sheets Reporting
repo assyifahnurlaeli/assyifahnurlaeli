@@ -1,0 +1,64 @@
+function fetchRedashAndDump() {
+  const REDASH_URL = "https://redash-id.***.co";
+  const API_KEY    = "********"; // disembunyikan untuk keamanan
+  const QUERY_ID   = ****;
+  const SHEET_URL  = "https://docs.google.com/spreadsheets/d/...";
+  const TAB_NAME   = "Master Data";
+
+  // Parameter tanggal
+  const start_date = "2025-04-28"; 
+  const end_date   = Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd");
+
+  const params = {
+    "start_forward_creation_datetime": start_date,
+    "end_forward_creation_datetime": end_date,
+    "shipper_id": "10968086"
+  };
+
+  // Trigger query Redash
+  const payload = { "max_age": 0, "parameters": params };
+  let response = UrlFetchApp.fetch(`${REDASH_URL}/api/queries/${QUERY_ID}/results`, {
+    method: "post",
+    contentType: "application/json",
+    headers: { "Authorization": "Key " + API_KEY },
+    payload: JSON.stringify(payload)
+  });
+
+  // Ambil hasil query
+  let rows = JSON.parse(response.getContentText()).query_result.data.rows;
+  if (!rows || rows.length === 0) return;
+
+  let ss = SpreadsheetApp.openByUrl(SHEET_URL);
+  let sheet = ss.getSheetByName(TAB_NAME);
+
+  // Bersihkan isi lama kecuali header
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+  }
+
+  let headers = Object.keys(rows[0]);
+  let values  = rows.map(r => headers.map(h => r[h]));
+
+  // Sortir Entry_AWB
+  let entryIndex = headers.indexOf("Entry_AWB");
+  if (entryIndex !== -1) {
+    values.sort((a, b) => new Date(a[entryIndex]) - new Date(b[entryIndex]));
+  }
+
+  // Tulis header + data
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sheet.getRange(2, 1, values.length, headers.length).setValues(values);
+
+  Logger.log("Data dump SUCCESS. Rows: " + values.length);
+}
+
+// Buat trigger otomatis
+function createTriggers() {
+  [9, 16, 22].forEach(hour => {
+    ScriptApp.newTrigger("fetchRedashAndDump")
+      .timeBased()
+      .atHour(hour)
+      .everyDays(1)
+      .create();
+  });
+}
