@@ -1,0 +1,7 @@
+date,order_id,product_id,product_name,quantity,price,store
+2025-11-10,1001,P001,Produk A,2,50000,Jakarta
+2025-11-10,1002,P002,Produk B,1,75000,Bandung
+2025-11-11,1003,P001,Produk A,1,50000,Jakarta
+2025-11-11,1004,P003,Produk C,5,20000,Surabaya
+2025-11-12,1005,P002,Produk B,2,75000,Bandung
+2025-11-12,1006,P004,Produk D,3,120000,Jakarta

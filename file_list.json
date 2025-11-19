@@ -1,0 +1,13 @@
+{
+  "base_folder": "/mnt/data/Automation_Reporting_Project",
+  "files": [
+    "README.md",
+    "assets/dashboard_mock.png",
+    "data/dashboard_sample.csv",
+    "data/sample_sales.csv",
+    "docs/project_documentation.md",
+    "scripts/email_sender.py",
+    "scripts/etl.py",
+    "scripts/report_generator.py"
+  ]
+}
