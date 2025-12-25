@@ -2,7 +2,7 @@ function fetchRedashAndDump() {
   const REDASH_URL = "https://redash-id.***.co";
   const API_KEY    = "********"; // disembunyikan untuk keamanan
   const QUERY_ID   = ****;
-  const SHEET_URL  = "https://docs.google.com/spreadsheets/d/...";
+  const SHEET_URL  = "https://docs.google.com/spreadsheets/d/18oQj8ceP29YigTtWZNjZH_dz65eOmgmZpVRxlpkIOGg";
   const TAB_NAME   = "Master Data";
 
   // Parameter tanggal
